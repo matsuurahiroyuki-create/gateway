@@ -3,8 +3,8 @@ services:
 - name: gateway
   source_dir: gateway
   github:
-    branch: main
-    repo: hanzoai/hanzo
+    branch: app-platform
+    repo: hanzoai/gateway
     deploy_on_push: true
   run_command: npm start
   environment_slug: node-js
