@@ -1,0 +1,41 @@
+name: hanzo-gateway
+services:
+- name: gateway
+  source_dir: gateway
+  github:
+    branch: main
+    repo: hanzoai/hanzo
+    deploy_on_push: true
+  run_command: npm start
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 3001
+  routes:
+  - path: /
+  envs:
+  - key: PORT
+    value: "3001"
+  - key: HOST
+    value: "0.0.0.0"
+  - key: TRUST_PROXY
+    value: "true"
+  - key: GATEWAY_IDENTITY
+    value: "did:hanzo:gateway"
+  - key: DIGITALOCEAN_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: VOYAGE_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: DEEPSEEK_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: OPENAI_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: ANTHROPIC_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+  health_check:
+    http_path: /health
