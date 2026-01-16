@@ -1,7 +1,6 @@
 name: hanzo-gateway
 services:
 - name: gateway
-  source_dir: gateway
   github:
     branch: app-platform
     repo: hanzoai/gateway
@@ -23,14 +22,19 @@ services:
   - key: GATEWAY_IDENTITY
     value: "did:hanzo:gateway"
   - key: DIGITALOCEAN_API_KEY
-    value: "sk-do-xwKWq7K46YEhZ_9Qp2NECnqv3Idi048LU93fLXMdgeEHjRGkdmKK-ydh1j"
+    scope: RUN_TIME
+    type: SECRET
   - key: VOYAGE_API_KEY
-    value: "pa-adPuLsVUbXWfLGVskDbYx5xaggBOG33n0CLKZt60dQS"
-  - key: DEEPSEEK_API_KEY
-    value: "sk-your_deepseek_key_here"
+    scope: RUN_TIME
+    type: SECRET
   - key: OPENAI_API_KEY
-    value: "sk-your_openai_key_here"
+    scope: RUN_TIME
+    type: SECRET
   - key: ANTHROPIC_API_KEY
-    value: "sk-ant-your_anthropic_key_here"
+    scope: RUN_TIME
+    type: SECRET
+  - key: DEEPSEEK_API_KEY
+    scope: RUN_TIME
+    type: SECRET
   health_check:
     http_path: /health
