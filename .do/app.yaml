@@ -2,10 +2,11 @@ name: hanzo-gateway
 services:
 - name: gateway
   github:
-    branch: app-platform
+    branch: main
     repo: hanzoai/gateway
     deploy_on_push: true
-  run_command: npm start
+  source_dir: /gateway
+  run_command: node server.js
   environment_slug: node-js
   instance_count: 1
   instance_size_slug: basic-xxs
