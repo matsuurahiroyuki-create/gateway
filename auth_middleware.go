@@ -415,6 +415,8 @@ func NewAuthMiddleware(cfg AuthConfig) gin.HandlerFunc {
 		// Parse and validate JWT
 		claims, err := validateToken(token, cache, cfg.Issuer, cfg.Audience)
 		if err != nil {
+			// Log detailed error for debugging (visible in pod logs)
+			fmt.Printf("[auth] JWT validation FAILED: path=%s err=%v\n", path, err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error":   "unauthorized",
 				"message": "Invalid token",
@@ -448,8 +450,19 @@ func NewAuthMiddleware(cfg AuthConfig) gin.HandlerFunc {
 			c.Request.Header.Set("X-Phone-Number", userPhone)
 		}
 		// Propagate isAdmin for downstream RBAC (broker compliance, etc.)
-		if claims.IsAdmin {
+		// Casdoor v1.0.0 doesn't reliably include isAdmin in JWT claims even
+		// with token_fields configured, so fall back to an email allowlist
+		// driven by ADMIN_EMAILS env var (comma-separated) or a default set
+		// of known admin domains. Upstream services (BD compliance, ATS
+		// admin) check X-Role for "admin" / "superadmin".
+		isAdmin := claims.IsAdmin
+		if !isAdmin && userEmail != "" {
+			isAdmin = isAdminEmail(userEmail)
+		}
+		if isAdmin {
 			c.Request.Header.Set("X-User-IsAdmin", "true")
+			c.Request.Header.Set("X-Role", "admin")
+			c.Request.Header.Set("X-Is-Admin", "true")
 		}
 
 		// Check billing status (fail-open)
@@ -567,6 +580,8 @@ func stripIdentityHeaders(r *http.Request) {
 	r.Header.Del("X-User-Email")
 	r.Header.Del("X-Phone-Number")
 	r.Header.Del("X-User-IsAdmin")
+	r.Header.Del("X-Role")
+	r.Header.Del("X-Is-Admin")
 	r.Header.Del("X-User-Roles")
 	// Also strip legacy prefixed headers
 	for key := range r.Header {
@@ -628,4 +643,50 @@ func extractTokenFromCookie(r *http.Request) string {
 	}
 
 	return ""
+}
+
+// isAdminEmail reports whether the given email should be treated as an admin
+// by downstream services (BD, ATS, TA admin UIs).
+//
+// Precedence:
+//  1. ADMIN_EMAILS env var (comma-separated list of exact emails)
+//  2. ADMIN_DOMAINS env var (comma-separated list of domains, e.g.
+//     "satschel.com,liquidity.io")
+//  3. Hardcoded fallback: satschel.com + liquidity.io + hanzo.ai
+//
+// This is a workaround for Casdoor v1.0.0 not reliably including the isAdmin
+// JWT claim even when token_fields is configured. Remove once IAM upgrades
+// to a version that honors token_fields or we switch to a different IdP.
+func isAdminEmail(email string) bool {
+	if email == "" {
+		return false
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	// Exact email allowlist
+	if v := os.Getenv("ADMIN_EMAILS"); v != "" {
+		for _, e := range strings.Split(v, ",") {
+			if strings.ToLower(strings.TrimSpace(e)) == email {
+				return true
+			}
+		}
+	}
+
+	// Domain allowlist
+	at := strings.LastIndex(email, "@")
+	if at < 0 {
+		return false
+	}
+	domain := email[at+1:]
+
+	domains := os.Getenv("ADMIN_DOMAINS")
+	if domains == "" {
+		domains = "satschel.com,liquidity.io,hanzo.ai"
+	}
+	for _, d := range strings.Split(domains, ",") {
+		if strings.ToLower(strings.TrimSpace(d)) == domain {
+			return true
+		}
+	}
+	return false
 }
